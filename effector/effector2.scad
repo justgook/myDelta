@@ -13,26 +13,41 @@ $fs = 0.5; // default minimum facet size is now 0.5 mm
 
 //yaw roll pitch
 
-module yaw(a) { rotate([0,0,a]) children(); }
-module roll(a) { rotate([0,a,0]) children(); }
-module pitch(a) { rotate([a,0,0]) children(); }
-module x(p) { translate([p,0,0]) children(); }
-module y(p) { translate([0,p,0]) children(); }
-module z(p) { translate([0,0,p]) children(); }
+module yaw(a) {
+    rotate([0, 0, a]) children();
+}
+module roll(a) {
+    rotate([0, a, 0]) children();
+}
+module pitch(a) {
+    rotate([a, 0, 0]) children();
+}
+module x(p) {
+    translate([p, 0, 0]) children();
+}
+module y(p) {
+    translate([0, p, 0]) children();
+}
+module z(p) {
+    translate([0, 0, p]) children();
+}
 
 module effector(mount_height = 4.8, mount_width = 16, mount_groove_height = 4.6, mount_groove_width = 12, heat_sink_width = 16, heat_sink_offset = 0, hot_end_height = 40, fan_size = 30, fan_adapter = 40) {
 
     cut = 1;
-
-    mount_bottom_possition = hot_end_height - mount_height;
-    grove_bottom_possition = hot_end_height - mount_height - mount_groove_height;
-    heat_sink_top_possition = grove_bottom_possition - heat_sink_offset;
-
     shell_width = 3;
     ribs_width = 2;
 
     bolt_size = 3;
     bolt_hole = bolt_size + 0.2;
+
+
+    mount_bottom_possition = hot_end_height - mount_height;
+    //TODO rename to something more reasonable, taht include shell_width on top 
+    grove_bottom_possition = hot_end_height - mount_height - mount_groove_height - shell_width;
+    heat_sink_top_possition = grove_bottom_possition - heat_sink_offset + shell_width;
+
+
 
     module hot_end() {
             union() {
@@ -90,7 +105,7 @@ module effector(mount_height = 4.8, mount_width = 16, mount_groove_height = 4.6,
     module holder() {
         difference() {
             //part
-        
+
             union() {
                     cylinder(d = mount_width + shell_width, h = mount_groove_height);
 
@@ -103,81 +118,159 @@ module effector(mount_height = 4.8, mount_width = 16, mount_groove_height = 4.6,
                         }
 
                 }
-            //bolts
+                //bolts
             for (i = [-1, 1])
-                    translate([(mount_groove_width / 2 + bolt_hole / 2 + shell_width / 4) * i, 0, mount_groove_height / 2]) pitch(90) cylinder(d = bolt_hole, h = mount_width + shell_width + cut, center = true);
+                translate([(mount_groove_width / 2 + bolt_hole / 2 + shell_width / 4) * i, 0, mount_groove_height / 2]) pitch(90) cylinder(d = bolt_hole, h = mount_width + shell_width + cut, center = true);
             //center hole
-            z( - cut / 2) cylinder(d = mount_groove_width, h = mount_groove_height + cut);
+            z(-cut / 2) cylinder(d = mount_groove_width, h = mount_groove_height + cut);
         }
     }
 
-	module top_holes(i = 1){
-		    vertical_bolt = mount_width / 2 + shell_width * 1.5 /*+ bolt_hole*/;
-            translate([vertical_bolt * i, 0, 0 /* *2/2 */]) children();
-	}
+    module top_holes(i = 1) {
+        vertical_bolt = mount_width / 2 + shell_width * 1.5 /*+ bolt_hole*/ ;
+        translate([vertical_bolt * i, 0, 0 /* *2/2 */ ]) children();
+    }
 
-	function fan_mount_width(size) = size+shell_width*2;
-	function mount_offest_center() = 15;
-	function fan_degree() = [0,120,240];
-	function fan_angle() = -asin(grove_bottom_possition / fan_mount_width(fan_size));
+    function fan_mount_width(size) = size + shell_width * 2;
 
-	module fan_mount(size, height) {
-		//#cylinder(d=1,h=10);
-		y(fan_mount_width(size)/2) difference(){
-			z(height/2) cube([fan_mount_width(size),fan_mount_width(size),height],center=true);
-			z(-cut/2) cylinder(d=size,h=height+cut);
-		}
-		
-	}
+    function mount_offest_center() = 15;
 
-	//2d cap coords 0-5 outside, 6-11 insede
-	function removeMe (a) = [
-					[
-						sin(a-120)*mount_offest_center() +cos(a-120)* fan_mount_width(fan_size)/2 , 
-						-cos(a-120) * mount_offest_center()+sin(a-120)* fan_mount_width(fan_size)/2
-					],
-					[
-						sin(a) * mount_offest_center() - cos(a)* fan_mount_width(fan_size)/2, 
-						-cos(a) * mount_offest_center() - sin(a)* fan_mount_width(fan_size)/2
-					],
-					[
-						sin(a) * (mount_offest_center()+cos(fan_angle()) * fan_mount_width(fan_size)) -cos(a)* fan_mount_width(fan_size)/2,
-						-cos(a) * (mount_offest_center()+cos(fan_angle()) * fan_mount_width(fan_size)) -sin(a)* fan_mount_width(fan_size)/2
-					],
-					[
-						sin(a-120)*(mount_offest_center()+cos(fan_angle()) * fan_mount_width(fan_size)) +cos(a-120)* fan_mount_width(fan_size)/2 , 
-						-cos(a-120) * (mount_offest_center()+cos(fan_angle()) * fan_mount_width(fan_size))+sin(a-120)* fan_mount_width(fan_size)/2
-					]
-				];
+    function fan_degree() = [0, 120, 240];
 
+    function fan_angle() = -asin(grove_bottom_possition / fan_mount_width(fan_size));
 
-		
-	function cap_points(i) = i%4;//removeMe([0,120,240][floor(i/2) % 3])[0];
-echo(cap_points(1));
-	
-
-	module fan_mounts_positing(){
-	//TODO find correct distatnce from center
-		for (a=fan_degree()) yaw(180 + a) y(mount_offest_center()) pitch(fan_angle()) {
-			fan_mount(fan_size, shell_width);	
-		}
-	}
-	
-
-   color([0.1, 0.8, 0.8]) hot_end();
-    difference() {
-            translate([0,0, grove_bottom_possition]) holder();
-		translate([0,0, grove_bottom_possition]) for (i=[-1,1]) top_holes(i) z(- cut / 2 - shell_width) cylinder(d = bolt_hole, h = mount_groove_height + cut + shell_width*2);
-
+    module fan_mount(size, height) {
+        //#cylinder(d=1,h=10);
+        y(fan_mount_width(size) / 2) difference() {
+            z(height / 2) cube([fan_mount_width(size), fan_mount_width(size), height], center = true);
+            z(-cut / 2) cylinder(d = size, h = height + cut);
         }
 
-z(grove_bottom_possition){ 
-fan_mounts_positing();
-color([0.8,0.1,0.1]) polygon(points=[cap_points(0),cap_points(1),cap_points(6), cap_points(7)], paths=[[0,1,2,3]]);
+    }
+
+    //2d cap coords 0-5 outside, 6-11 insede
+    function point_wrapper(a, inside = true) = (inside ? [
+        [
+            sin(a - 120) * mount_offest_center() + cos(a - 120) * fan_mount_width(fan_size) / 2, -cos(a - 120) * mount_offest_center() + sin(a - 120) * fan_mount_width(fan_size) / 2
+        ],
+        [
+            sin(a) * mount_offest_center() - cos(a) * fan_mount_width(fan_size) / 2, -cos(a) * mount_offest_center() - sin(a) * fan_mount_width(fan_size) / 2
+        ]
+    ] : [
+
+        [
+            sin(a - 120) * (mount_offest_center() + cos(fan_angle()) * fan_mount_width(fan_size)) + cos(a - 120) * fan_mount_width(fan_size) / 2, -cos(a - 120) * (mount_offest_center() + cos(fan_angle()) * fan_mount_width(fan_size)) + sin(a - 120) * fan_mount_width(fan_size) / 2
+        ],
+        [
+            sin(a) * (mount_offest_center() + cos(fan_angle()) * fan_mount_width(fan_size)) - cos(a) * fan_mount_width(fan_size) / 2, -cos(a) * (mount_offest_center() + cos(fan_angle()) * fan_mount_width(fan_size)) - sin(a) * fan_mount_width(fan_size) / 2
+        ]
+    ]);
 
 
-}
-        //adapter();
+
+    function cap_points(i) = point_wrapper([0, 120, 240][floor(i / 2) % 3], i > 5)[i % 2];
+
+
+
+    module fan_mounts_positing() {
+        //TODO find correct distatnce from center
+        for (a = fan_degree()) yaw(180 + a) y(mount_offest_center()) pitch(fan_angle()) {
+            fan_mount(fan_size, shell_width);
+        }
+    }
+
+
+
+    module sides()
+    for (i = [0: 2]) {
+        a = [120, 240, 0][i];
+        p1 = [0, 2, 4][i];
+        p2 = [1, 3, 5][i];
+        p3 = [6, 8, 10][i];
+        p4 = [7, 9, 11][i];
+        shell = 3; //TODO make real canculation based on shellwidth and angle	
+        color([0.1, 0.8, 0.1])
+        hull() {
+            linear_extrude(height = 0.2, center = false, convexity = 10, slices = 20, scale = 1.0)
+            polygon(
+                points = [
+                    cap_points(p1),
+                    cap_points(p2), [cap_points(p2)[0] - sin(a) * shell, cap_points(p2)[1] + cos(a) * shell],
+                    [cap_points(p1)[0] - sin(a) * shell, cap_points(p1)[1] + cos(a) * shell]
+
+                ],
+                paths = [
+                    [0, 1, 2, 3]
+                ]
+            );
+
+
+            z(grove_bottom_possition)
+            linear_extrude(height = 0.2, center = false, convexity = 10, slices = 20, scale = 1.0)
+            polygon(
+                points = [
+                    cap_points(p3),
+                    cap_points(p4), [cap_points(p4)[0] - sin(a) * shell, cap_points(p4)[1] + cos(a) * shell],
+                    [cap_points(p3)[0] - sin(a) * shell, cap_points(p3)[1] + cos(a) * shell]
+
+                ],
+                paths = [
+                    [0, 1, 2, 3]
+                ]
+            );
+        }
+
+    }
+
+
+
+
+    module bottom_cup() {
+        linear_extrude(height = shell_width, center = false, convexity = 10, slices = 20, scale = 1.0)
+            //Bottom cup
+        polygon(points = [cap_points(0), cap_points(1), cap_points(2), cap_points(3), cap_points(4), cap_points(5)], paths = [
+            [0, 1, 2, 3, 4, 5]
+        ]);
+
+
+
+    }
+    module top_cup() {
+        linear_extrude(height = shell_width, center = false, convexity = 10, slices = 20, scale = 1.0)
+
+        //Top Cap
+        polygon(points = [cap_points(6), cap_points(7), cap_points(8), cap_points(9), cap_points(10), cap_points(11)], paths = [
+            [0, 1, 2, 3, 4, 5]
+        ]);
+    }
+
+
+
+
+    color([0.1, 0.8, 0.8]) hot_end();
+    difference() {
+        z(grove_bottom_possition) {
+            z(shell_width) holder();
+            top_cup();
+        }
+        z(grove_bottom_possition + shell_width) for (i = [-1, 1]) top_holes(i) z(-cut / 2 - shell_width) cylinder(d = bolt_hole, h = mount_groove_height + cut + shell_width * 2);
+
+    }
+
+
+    bottom_cup();
+
+
+    sides();
+    z(grove_bottom_possition) {
+        fan_mounts_positing();
+
+
+    }
+
+
+
+
 }
 
 
